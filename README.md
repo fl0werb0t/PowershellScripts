@@ -1,1 +1,5 @@
-I am a test Readme. I am a change to the radme.
+Miscellaneous Powershell scripts for interacting with Active Directory.
+
+Some automation, some notifications and some just for fun.
+
+
