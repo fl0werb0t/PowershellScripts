@@ -1,7 +1,6 @@
 ﻿##Automate a few steps when setting up a new Windows machine.
 ##Modify to fit your needs
 
-#ToDo prompt user password change on initial login
 #ToDo Start Menu setup
 #ToDo Sign in to O365?
 
@@ -12,6 +11,11 @@ $SecPaswd= ConvertTo-SecureString -String $password –AsPlainText –Force
 New-LocalUser "newUser" -Password $SecPaswd -FullName "New User"
 #Add them to local admins 
 Add-LocalGroupMember -Group Administrators -Member newUser
+
+#Set password as expired, user prompted to change next login
+$euser = [ADSI]"WinNT://localhost/newUser,user"
+$euser.PasswordExpired = 1
+$euser.setInfo()
 
 Write-Host "Enter computer name."
 $Nombre = Read-Host
