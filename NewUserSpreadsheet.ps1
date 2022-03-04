@@ -5,8 +5,7 @@
 #option to modify something?
 #confirm you want to create
 #RandomPassword generate
-
-
+#$filePath = $PSScriptRoot + "\NewUser.csv"
 ###########Variables############
 #Modify according to your environment.
 $mailBoxDB = 'Database'
@@ -30,10 +29,11 @@ $group1= "Allusers"
 $groups = $group1
 
 $date = [datetime]::Today.ToString('MM-dd-yyyy')
-
+#Need to call them by full name in order to carry global value
 $Global:fName
 $Global:lName
 $Global:email
+$Global:uName
 $Global:title
 $Global:department
 $Global:ou
@@ -42,16 +42,16 @@ $Global:ou
 ######## End Variables ############
 
 #Figure out file path to be same dir as script
-Import-Csv -path C:\drivers\NewEmployee.csv | foreach {
-    $fName = $_.FirstName
-    $lName = $_.LastName
-    $email = $_.email
-    $title = $_.title
-    $department = $_.department
-    $ou = $_.office
+Import-Csv -path "c:\temp\newUsers.csv" | foreach {
+    $Global:fName = $_.FirstName
+    $Global:lName = $_.LastName
+    $Global:email = $_.email
+    $Global:title = $_.title
+    $Global:department = $_.department
+    $Global:ou = $_.office
 
     #create username
-    $uname = $lName + $fName.substring(0,1)}
+    $Global:uName = $lName + $fName.substring(0,1)}
 
 function Show-User{
     #Write-Host $uname
@@ -97,8 +97,8 @@ function CorrectUser
         {
              '1' {
                  $up = Read-Host -Prompt "Enter new First Name."
-                 $fName = $up
-                 $uname = $lName + $fName.substring(0,1)
+                 $Global:fName = $up
+                 $Global:uName = $lName + $Global:fName.substring(0,1)
                  $email = $fname + '.' + $lName + "@frtinc.com"
                  Show-User
              } '2' {
@@ -158,6 +158,7 @@ do
            } 'Y' {
                 cls
                 Write-Host "$fName $lName"
+                Write-Host "$Global:uName:"
                 CreateUser
                 #clear variables
                 #quit
