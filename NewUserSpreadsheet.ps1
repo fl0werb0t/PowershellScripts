@@ -1,25 +1,31 @@
-﻿#Open Exel doc
-#get user details
-#format
-#verify before creating
-#option to modify something?
-#confirm you want to create
-#RandomPassword generate
-#$filePath = $PSScriptRoot + "\NewUser.csv"
+﻿########Notes##########
+<#
+This is a mostly function script to pull users from a .CSV file
+and add them to Active Directory and Exchange.
+
+Basic user/mailbox creation works.
+
+With little work you can have a working script.
+
+Feel free to modify to quite your environment.
+
+#>
 ###########Variables############
 #Modify according to your environment.
-$mailBoxDB = 'Database'
-$exchange = 'ExchangeServer'
-$Company = "Acme Dildo Company"
-#$terminatedOU = 'OU=Terminated Employees,DC=corp,DC=adc,DC=com' #Terminated Users OU
-#'Semi random password for setup.
-$password = 'Welcome' #Generic password for setup.
-$num = Get-Random -Minimum 1000 -Maximum 9999
+$mailBoxDB = 'MailboxDB'
+$exchange = 'ExchangeServer1'
+$Company = "Aceme Dildo Company"
+
+#Semi random password for setup.
+$number = Get-Random -Maximum 9999 -Minimum 1000
+$password = "Welcome" + $number
+$password += (33..47)| Get-Random -Count 2 | % {[char]$_}
+$password = $password.replace(' ','')
 #Make password string usable.
 $SecPaswd= ConvertTo-SecureString -String $password –AsPlainText –Force 
 
 $domain = "@corp.adc.com"
-$OU = 'Forerunner users'#default users OU
+$Global:ou = 'ADC Users'#default users OU
 #Add your standard groups to a list
 $group1= "Allusers"
 #$group2 = "Group 2"
@@ -29,29 +35,29 @@ $group1= "Allusers"
 $groups = $group1
 
 $date = [datetime]::Today.ToString('MM-dd-yyyy')
-#Need to call them by full name in order to carry global value
-$Global:fName
-$Global:lName
-$Global:email
-$Global:uName
-$Global:title
-$Global:department
-$Global:ou
 
-
+$Global:fName = $null
+$Global:lName = $null
+$Global:email = $null
+$global:uname = $null
+$Global:title= $null
+$Global:department = $null
 ######## End Variables ############
 
-#Figure out file path to be same dir as script
-Import-Csv -path "c:\temp\newUsers.csv" | foreach {
-    $Global:fName = $_.FirstName
-    $Global:lName = $_.LastName
-    $Global:email = $_.email
-    $Global:title = $_.title
-    $Global:department = $_.department
-    $Global:ou = $_.office
+#ToDo Figure out file path to be same dir as script
+#This needs to be modified, reads all users but only performs action on the last user read in.
+Import-Csv -path C:\temp\NewEmployee.csv | foreach {
+    $fName = $_.FirstName
+    $lName = $_.LastName
+    $email = $_.email
+    $title = $_.title
+    $department = $_.department
+    $ou = $_.office
 
     #create username
-    $Global:uName = $lName + $fName.substring(0,1)}
+    $uname = $lName + $fName.substring(0,1)}
+    #Simple cleanup
+    $uname= $uname.replace("'",'')
 
 function Show-User{
     #Write-Host $uname
@@ -83,45 +89,58 @@ function YouGood{
 
 function CorrectUser
 {
-
+    cls
     do{
         #anything else is a fail which means correction needed
-        Write-host "Something needs correction. Pick your option."
-        Write-Host "Enter 0 when you're done making corrections."
-        
+       
         #Test for blank input
         #function to test for null?
-
-        $pCorrect = Read-Host -Prompt "What do you need to correct?"
+        Write-Host "1.First name: $fName"
+        Write-Host "2.Last name: $lName"
+        Write-Host "3.Username: $uname"
+        Write-Host "4.Email Address: $email"
+        Write-Host "5.Title: $title"
+        Write-Host "6.Department: $department"
+        Write-Host "7.Office: $ou"
+        
+        Write-Host "Enter 0 when you're done making corrections."
+        $pCorrect = Read-Host -Prompt "What do you need to correct?" 
+        
         switch ($pCorrect)
         {
              '1' {
                  $up = Read-Host -Prompt "Enter new First Name."
                  $Global:fName = $up
-                 $Global:uName = $lName + $Global:fName.substring(0,1)
-                 $email = $fname + '.' + $lName + "@frtinc.com"
-                 Show-User
+                 $Global:uname = $lName + $fName.substring(0,1)
+                 $Global:email = $fname + '.' + $lName + "@adc.com"
+                cls
              } '2' {
                 $up = Read-Host -Prompt "Enter new Last Name."
-                 $lName = $up
-                 $uname = $lName + $fName.substring(0,1)
-                 $email = $fname + '.' + $lName + "@frtinc.com"
-                 Show-User
+                 $Global:lName = $up
+                 $Global:uname = $lName + $fName.substring(0,1)
+                 $Global:email = $fname + '.' + $lName + "@adc.com"
+                cls
              } '3' {
                  $up = Read-Host -Prompt "Enter new username."
-                 $uname = $up
-                 Show-User
+                 $Global:uname = $up
+         cls
              }'4'{
-               $up = Read-Host -Prompt "Enter new email."
-                 $email = $up
-                 Show-User
+                $up = Read-Host "Enter new email."
+                $Global:email = $up
+            cls   
              } '5' {
-                 $up = Read-Host -Prompt "Enter new department."
-                 $department = $up
-                 Show-User
-                 $pCorrect = '0'
+                    $up = Read-Host -Prompt "Enter new title."
+                $Global:title = $up
+               cls
+                 
              } '6' {
-               #other option
+                $up = Read-Host -Prompt "Enter new department."
+                $Global:department = $up
+               cls
+             } '7'{
+                $up= Read-host -Prompt "Enter new office."
+                $Global:ou = $up
+               cls
              }
          
         }
@@ -129,25 +148,67 @@ function CorrectUser
         }
         until ($pCorrect -eq '0')
         cls
-        Show-User
+        #Show-User
 }
+
+
 
 function CreateUser{
     Write-host "We're going to create a new user now."
-    # New-Mailbox –Name $Name –Alias $Username –OrganizationalUnit $OU -Database $mailBoxDB –UserPrincipalName $UPN -FirstName $fName –LastName $lName –ResetPasswordOnNextLogon $true -Password $SecPaswd
+    $Name = $Global:fName + " " + $Global:lName
 
-    #if yes than proceed with user creation
-    #if it's not right pick what you want
-    #this could probably be a switch
-    #this might need to be in a loop
-    Write-Host "User $uname was created."
+    #Office Determines OU
+    switch ($Global:OU)
+    {
+         'Field' {
+             $Global:OU = 'OU=Field,DC=corp,DC=adc,DC=com'
+         } 'Office' {
+             $Global:OU = 'OU=Office,DC=corp,DC=adc,DC=com'
+         } 'Remote' {
+             $Global:OU = 'OU=Remote,DC=corp,DC=adc,DC=com'
+         }'' {
+             #if no option is entered leave OU as is.
+         }
+    }
+
+    Write-Host $Global:OU
+
+    #Establish Connections to Exchange and AD - Will prompt for admin credentials
+    $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$exchange/PowerShell/ -Authentication Kerberos -Credential $UserCredential
+    Import-PSSession $Session
+    Import-Module ActiveDirectory
+
+    #Use New-Mailbox so a mailbox is created along with user.
+    #Remove -Whatif to actually create user
+    New-Mailbox –Name $Name –Alias $global:uname –OrganizationalUnit $Global:ou -Database $mailBoxDB –UserPrincipalName ($global:uname +$domain) -FirstName $global:fName –LastName $global:lName –ResetPasswordOnNextLogon $true -Password $SecPaswd -whatif
+
+    ##Pause to allow user completeion to complete.
+    ##If you try to modify a new user too quickly, sometiems fails.
+    Write-Host "Pausing to allow user creation to complete."
+    Start-Sleep -s 5
+    
+    #user existing user for testing
+    #again, remote -Whatif to complete command
+    Set-ADUser $uname -Title $Global:title -Department $Global:department -WhatIf
+
+    Write-Host "User $uname was created with a password of $password."
+}
+
+function addGroupMembership {
+    #this function is to update the user's group membership based on role and office. or Maybe just office and the other stuff can be done later.
+    
+    #user existing user for testing
+    ##UPDATE THIS VARIABLE
+    $user = 'usert'
+    Set-ADUser $user -Title $Global:title -Department $Global:department -WhatIf
    
+
 }
 
 #This do statement really ties the script together.
+#Needs additional work since it will only take the last user in the .CSV file
 do
 {
-    #user is already pulled in at initial run
     Show-User
      $uGood = Read-Host -Prompt "Does this look good? Y/N"
      switch ($uGood)
@@ -157,8 +218,7 @@ do
                 
            } 'Y' {
                 cls
-                Write-Host "$fName $lName"
-                Write-Host "$Global:uName:"
+                #Write-Host "$fName $lName"
                 CreateUser
                 #clear variables
                 #quit
@@ -180,11 +240,3 @@ do
      }
 }
 until ($input -eq 'q')
-
-
-# match column name ie $_.department
-#$givenName = $_.name.split()[0] 
-#$surname = $_.name.split()[1]
-#new-aduser -name $_.name -enabled $true –givenName $givenName –surname $surname -accountpassword (convertto-securestring $_.password -asplaintext -force) -changepasswordatlogon $true -samaccountname $_.samaccountname –userprincipalname ($_.samaccountname+”@ad.contoso.com”) -city $_.city -department $_.department
-
-Show-User
